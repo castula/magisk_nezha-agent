@@ -1,7 +1,7 @@
 #!/system/bin/sh
 MODDIR=${0%/*}
 AGENT="$MODDIR/bin/nezha-agent"
-CERT_FILE="$MODDIR/cacerts.pem"
+CERT_FILE="$MODDIR/bin/ca.crt"
 
 echo "nezha-agent" > /sys/power/wake_lock 2>/dev/null
 
