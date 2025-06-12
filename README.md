@@ -6,7 +6,7 @@
 
 ## ✅ 使用方法
 
-1. 下载 `module.zip`；
+1. 下载 `magisk_nezha-agent.zip`；
 2. 修改模块中的 `/bin/config.yml` 配置文件，填写你的探针信息；
 3. 使用 Magisk App 刷入该模块；
 4. 重启后自动运行，无需手动启动。
