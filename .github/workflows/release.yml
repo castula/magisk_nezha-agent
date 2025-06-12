@@ -1,0 +1,24 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Prepare release zip
+        run: |
+          mkdir dist
+          zip -r dist/magisk_nezha-agent.zip bin service.sh module.prop META-INF
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/magisk_nezha-agent.zip
