@@ -16,6 +16,7 @@ jobs:
       - name: Prepare release zip
         run: |
           chmod +x bin/nezha-agent
+          chmod +x service.sh
           mkdir dist
           zip -r dist/magisk_nezha-agent.zip bin service.sh module.prop META-INF
 
