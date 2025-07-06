@@ -3,6 +3,8 @@ MODDIR=${0%/*}
 AGENT="$MODDIR/bin/nezha-agent"
 CERT_FILE="$MODDIR/bin/ca.crt"
 
+chmod 0755 "$AGENT"
+
 echo "nezha-agent" > /sys/power/wake_lock 2>/dev/null
 
 RETRY_COUNT=0
