@@ -15,10 +15,8 @@ jobs:
 
       - name: Prepare release zip
         run: |
-          chmod +x bin/nezha-agent
-          chmod +x service.sh
           mkdir dist
-          zip -r dist/magisk_nezha-agent.zip bin service.sh module.prop META-INF
+          zip -r dist/magisk_nezha-agent.zip bin post-fs-data.sh service.sh module.prop META-INF
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
