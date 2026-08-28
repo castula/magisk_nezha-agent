@@ -1,0 +1,81 @@
+name: Manual Build and Push
+
+on:
+  workflow_dispatch: # 仅允许手动在 Actions 页面触发
+
+jobs:
+  manual-build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 赋予推送代码和创建 Release 的权限
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Get Latest Version Unconditionally
+        id: get_version
+        run: |
+          # 直接获取 Nezha Agent 最新版本号
+          LATEST_VERSION=$(curl -sL https://api.github.com/repos/nezhahq/agent/releases/latest | jq -r .tag_name)
+          echo "Latest version fetched: $LATEST_VERSION"
+          
+          # 直接写入环境变量，跳过对比
+          echo "NEW_VERSION=$LATEST_VERSION" >> $GITHUB_ENV
+
+      - name: Download and Extract Binary
+        run: |
+          # 下载最新的 linux_arm64 zip 包
+          wget -q "https://github.com/nezhahq/agent/releases/latest/download/nezha-agent_linux_arm64.zip" -O agent.zip
+          
+          # 解压缩并只提取 nezha-agent 主程序
+          unzip -o agent.zip nezha-agent
+          
+          # 将主程序移动到 bin 目录并赋予执行权限
+          mkdir -p bin
+          mv nezha-agent bin/nezha-agent
+          chmod +x bin/nezha-agent
+          
+          # 清理下载的压缩包
+          rm agent.zip
+
+      - name: Commit and Push Changes
+        run: |
+          # 更新 last_version.txt
+          mkdir -p .github
+          echo "${{ env.NEW_VERSION }}" > .github/last_version.txt
+          
+          # 配置 Git 机器人信息
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 提交更新的二进制文件和版本记录文件
+          git add bin/nezha-agent .github/last_version.txt
+          
+          # 判断是否有文件发生变化，避免无修改时 commit 报错导致工作流失败
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: manual build and update nezha-agent to ${{ env.NEW_VERSION }}"
+            git push
+          else
+            echo "Files are already up-to-date. Nothing to commit."
+          fi
+
+      - name: Package Magisk Module
+        run: |
+          # 将指定的文件和目录打包为 zip
+          ZIP_NAME="magisk-nezha-agent-${{ env.NEW_VERSION }}.zip"
+          zip -r $ZIP_NAME META-INF bin module.prop service.sh
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+
+      - name: Replace Existing Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 尝试删除可能已经存在的同名 Release 和 Tag（忽略报错）
+          gh release delete "${{ env.NEW_VERSION }}" --yes --cleanup-tag || echo "No existing release to delete."
+          git push origin ":refs/tags/${{ env.NEW_VERSION }}" || echo "No existing tag to delete."
+
+          # 使用 GitHub CLI 重新创建 Release 并上传打包好的文件
+          gh release create "${{ env.NEW_VERSION }}" "${{ env.ZIP_NAME }}" \
+            --title "${{ env.NEW_VERSION }}" \
+            --notes "手动构建："
