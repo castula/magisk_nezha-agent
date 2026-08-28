@@ -1,4 +1,4 @@
-name: Auto Update Nezha Agent
+name: Auto Build and Push
 
 on:
   schedule:
@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Check for updates
         id: check_update
