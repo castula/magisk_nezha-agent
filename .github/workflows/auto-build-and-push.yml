@@ -88,4 +88,4 @@ jobs:
           # 使用 GitHub CLI 创建 Release 并上传打包好的文件
           gh release create "${{ env.NEW_VERSION }}" "${{ env.ZIP_NAME }}" \
             --title "${{ env.NEW_VERSION }}" \
-            --notes "构建："
+            --notes "🔔 **提示**：此 Magisk 模块当前仅支持 **arm64** 架构的设备。"
