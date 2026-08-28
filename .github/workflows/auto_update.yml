@@ -1,0 +1,91 @@
+name: Auto Update Nezha Agent
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # 每 6 小时执行一次
+  workflow_dispatch: # 允许手动在 Actions 页面触发，方便测试
+
+jobs:
+  check-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 赋予推送代码和创建 Release 的权限
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Check for updates
+        id: check_update
+        run: |
+          # 获取 Nezha Agent 最新版本号
+          LATEST_VERSION=$(curl -sL https://api.github.com/repos/nezhahq/agent/releases/latest | jq -r .tag_name)
+          echo "Latest version: $LATEST_VERSION"
+          
+          # 读取本地记录的版本号（如果文件不存在则为空）
+          CURRENT_VERSION=""
+          if [ -f ".github/last_version.txt" ]; then
+            CURRENT_VERSION=$(cat .github/last_version.txt)
+          fi
+          echo "Current version: $CURRENT_VERSION"
+          
+          # 对比版本
+          if [ "$LATEST_VERSION" != "$CURRENT_VERSION" ] && [ -n "$LATEST_VERSION" ] && [ "$LATEST_VERSION" != "null" ]; then
+            echo "New version found!"
+            echo "NEW_VERSION=$LATEST_VERSION" >> $GITHUB_ENV
+            echo "UPDATE_FOUND=true" >> $GITHUB_ENV
+          else
+            echo "No update needed."
+            echo "UPDATE_FOUND=false" >> $GITHUB_ENV
+          fi
+
+      - name: Download and Extract Binary
+        if: env.UPDATE_FOUND == 'true'
+        run: |
+          # 下载最新的 linux_arm64 zip 包
+          wget -q "https://github.com/nezhahq/agent/releases/latest/download/nezha-agent_linux_arm64.zip" -O agent.zip
+          
+          # 解压缩并只提取 nezha-agent 主程序
+          unzip -o agent.zip nezha-agent
+          
+          # 将主程序移动到 bin 目录并赋予执行权限
+          mkdir -p bin
+          mv nezha-agent bin/nezha-agent
+          chmod +x bin/nezha-agent
+          
+          # 清理下载的压缩包
+          rm agent.zip
+
+      - name: Commit and Push Changes
+        if: env.UPDATE_FOUND == 'true'
+        run: |
+          # 更新 last_version.txt
+          mkdir -p .github
+          echo "${{ env.NEW_VERSION }}" > .github/last_version.txt
+          
+          # 配置 Git 机器人信息
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 提交更新的二进制文件和版本记录文件
+          git add bin/nezha-agent .github/last_version.txt
+          git commit -m "chore: auto update nezha-agent to ${{ env.NEW_VERSION }}"
+          git push
+
+      - name: Package Magisk Module
+        if: env.UPDATE_FOUND == 'true'
+        run: |
+          # 将指定的文件和目录打包为 zip
+          ZIP_NAME="magisk-nezha-agent-${{ env.NEW_VERSION }}.zip"
+          zip -r $ZIP_NAME META-INF bin module.prop service.sh
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+
+      - name: Create Release
+        if: env.UPDATE_FOUND == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 使用 GitHub CLI 创建 Release 并上传打包好的文件
+          gh release create "${{ env.NEW_VERSION }}" "${{ env.ZIP_NAME }}" \
+            --title "${{ env.NEW_VERSION }}" \
+            --notes "构建："
