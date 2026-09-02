@@ -2,7 +2,7 @@ name: Auto Build and Push
 
 on:
   schedule:
-    - cron: '0 */6 * * *' # 每 6 小时执行一次
+    - cron: '*/30 * * * *' # 每 6 小时执行一次
   workflow_dispatch: # 允许手动在 Actions 页面触发，方便测试
 
 jobs:
